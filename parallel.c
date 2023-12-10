@@ -158,7 +158,6 @@ void setkeys() {
 // Function to encrypt the given number
 long long int encrypt(double message) {
     
-
     long long int encrypted_text = 1,result = 1;
     if(rank < public_key){
         
@@ -172,19 +171,16 @@ long long int encrypt(double message) {
         end += public_key%size;
             
     }
-    
-    
-    //printf(" rank : %d the start is %d,section is :%d ,end is :%d \n",rank,start,section,end);
+
     for (int i = end;i>start;i--) {
         
         encrypted_text *= message;
         
         encrypted_text %= n;
-        //(" rank : %d the number is %lld\n",rank,encrypted_text);
     }
     }
     MPI_Allreduce(&encrypted_text, &result,1, MPI_INT64_T,MPI_PROD,MPI_COMM_WORLD);
-    //printf(" rank : %d the result number is %lld",rank,result);
+
     result %= n;
     
     return result;
@@ -192,13 +188,36 @@ long long int encrypt(double message) {
 
 // Function to decrypt the given number
 long long int decrypt(int encrypted_text) {
-    int d = private_key;
-    long long int decrypted = 1;
-    while (d--) {
+    long long int *resultArr = (long long int*)malloc(size  * sizeof(long long int));
+    long long int decrypted = 1,result = 1;
+        if(rank < private_key){
+        
+    int section = private_key/size;
+    if(size >private_key)
+    section = 1;
+    int start = section*rank;
+    int end = start + section;
+    if(rank == size -1){
+        
+        end += private_key%size;
+            
+    }
+    for (int i = end;i>start;i--) {
         decrypted *= encrypted_text;
         decrypted %= n;
     }
-    return decrypted;
+        }
+    //MPI_Allreduce(&decrypted, &result,1, MPI_INT64_T,MPI_PROD,MPI_COMM_WORLD);
+    MPI_Allgather(&decrypted,1,MPI_INT64_T,resultArr,1,MPI_INT64_T,MPI_COMM_WORLD);
+    result = decrypted;
+    for (int i = 0;i<size;i++) {
+        if (rank == i)
+            continue;
+        result *= resultArr[i];
+        result %= n;
+    }
+    free(resultArr);
+    return result;
 }
 
 // Function to encode the message
@@ -242,6 +261,7 @@ int main(int argc, char* argv[]) {
     // Calling the encoding function
     int size;
     int* coded = encoder(message, &size);
+    char* decoded = decoder(coded, size);
     if(rank == 0){
     
     printf("Initial message:\n%s\n\n", message);
@@ -250,10 +270,12 @@ int main(int argc, char* argv[]) {
         printf("%d", coded[i]);
     }
 
-    printf("\n\nThe decoded message (decrypted by private key):\n%s\n", decoder(coded, size));
+    printf("\n\nThe decoded message (decrypted by private key):\n%s\n",decoded );
     }
     // Free allocated memory
-    //free(coded);
+    free(coded);
+    free(prime);
+    free(decoded);
     MPI_Finalize();
     return 0;
 }
