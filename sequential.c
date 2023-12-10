@@ -77,6 +77,7 @@ long long int encrypt(double message) {
         encrypted_text *= message;
         encrypted_text %= n;
     }
+    printf(" the result number is %lld\n",encrypted_text);
     return encrypted_text;
 }
 
@@ -125,7 +126,7 @@ int main(int argc, char* argv[]) {
     const char* message = argv[1];
     primefiller();
     setkeys();
-
+    printf("the public key (%d)\nthe private key (%d)\n, the n is : (%d)\n",public_key,private_key,n);
     // Calling the encoding function
     int size;
     int* coded = encoder(message, &size);
