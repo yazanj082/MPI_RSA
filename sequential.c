@@ -9,14 +9,14 @@ int pickrandomprime();
 void setkeys();
 long long int encrypt(double message);
 long long int decrypt(int encrypted_text);
-int* encoder(const char* message, int* size);
-char* decoder(const int* encoded, int size);
+long long int* encoder(const char* message, int* size);
+char* decoder(const long long int* encoded, int size);
 
 // Global variables
 int prime[250]; // Using an array instead of set
-int public_key;
-int private_key;
-int n;
+long long  public_key;
+long long private_key;
+long long n;
 
 // Function to fill the primes array using the Sieve of Eratosthenes
 void primefiller() {
@@ -48,11 +48,9 @@ int pickrandomprime() {
 }
 
 // Function to set public and private keys
-void setkeys() {
-    int prime1 = pickrandomprime();
-    int prime2 = pickrandomprime();
+void setkeys(long long prime1,long long prime2) {
     n = prime1 * prime2;
-    int fi = (prime1 - 1) * (prime2 - 1);
+    long long fi = (prime1 - 1) * (prime2 - 1);
     int e = 2;
     while (1) {
         if (gcd(e, fi) == 1)
@@ -60,13 +58,14 @@ void setkeys() {
         e++;
     }
     public_key = e;
-    int d = 2;
+    long long d = 2;
     while (1) {
         if ((d * e) % fi == 1)
             break;
         d++;
     }
     private_key = d;
+    
 }
 
 // Function to encrypt the given number
@@ -77,7 +76,6 @@ long long int encrypt(double message) {
         encrypted_text *= message;
         encrypted_text %= n;
     }
-    printf(" the result number is %lld\n",encrypted_text);
     return encrypted_text;
 }
 
@@ -93,19 +91,19 @@ long long int decrypt(int encrypted_text) {
 }
 
 // Function to encode the message
-int* encoder(const char* message, int* size) {
+long long int* encoder(const char* message, int* size) {
     *size = strlen(message);
-    int* form = (int*)malloc(*size * sizeof(int));
+    long long int* form = (long long int*)malloc(*size * sizeof(long long int));
 
     for (int i = 0; i < *size; i++) {
-        form[i] = encrypt((int)message[i]);
+        form[i] = encrypt((long long int)message[i]);
     }
 
     return form;
 }
 
 // Function to decode the message
-char* decoder(const int* encoded, int size) {
+char* decoder(const long long int* encoded, int size) {
     char* s = (char*)malloc((size + 1) * sizeof(char));
 
     for (int i = 0; i < size; i++) {
@@ -124,17 +122,16 @@ int main(int argc, char* argv[]) {
 
     // Access the string argument using argv[1]
     const char* message = argv[1];
-    primefiller();
-    setkeys();
-    printf("the public key (%d)\nthe private key (%d)\n, the n is : (%d)\n",public_key,private_key,n);
+    setkeys(4001,4003);
+    printf("the public key (%lld)\nthe private key (%lld)\n, the n is : (%lld)\n",public_key,private_key,n);
     // Calling the encoding function
     int size;
-    int* coded = encoder(message, &size);
+    long long int* coded = encoder(message, &size);
 
     printf("Initial message:\n%s\n\n", message);
     printf("The encoded message (encrypted by public key):\n");
     for (int i = 0; i < size; i++) {
-        printf("%d", coded[i]);
+        printf("%lld", coded[i]);
     }
 
     printf("\n\nThe decoded message (decrypted by private key):\n%s\n", decoder(coded, size));

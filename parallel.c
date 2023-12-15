@@ -8,155 +8,82 @@
 jmp_buf exception_buffer;
 #define N 250
 // Function prototypes
-void primefiller();
-int pickrandomprime();
 void setkeys();
 long long int encrypt(double message);
 long long int decrypt(int encrypted_text);
-int* encoder(const char* message, int* size);
-char* decoder(const int* encoded, int size);
+long long * encoder(const char* message, int* size);
+char* decoder(const long long int* encoded, int size);
 
 // Global variables
-int *prime;
-int public_key;
-int private_key;
-int n;
+long long  public_key;
+long long  private_key;
+long long n;
 int rank, size,arraySize;
-// Function to fill the primes array using the Sieve of Eratosthenes
 
-bool isPrime(int num) {
-    if (num <= 1) {
-        return false;
-    }
-    for (int i = 2; i * i <= num; i++) {
-        if (num % i == 0) {
-            return false;
-        }
-    }
-    return true;
-}
 
-// Function to generate prime numbers in a given range and store them in an array
-void generatePrimesInRange(int start, int end, int primes[]) {
-    int count =0;
-    for (int i = start; i <= end; i++) {
-        if (isPrime(i)) {
-            primes[(count)++] = i;
-        }
-    }
-}
-void primefiller(){
-    int section = (N/size);
-    int localPrime[section];
-    int start = rank*section;
-    int end = rank*section + section;
-    generatePrimesInRange(start,end,localPrime);
-    prime = (int*)malloc(size * section * sizeof(int));
-    arraySize = N - N%size;
-    MPI_Allgather(localPrime,section,MPI_INT,prime,section,MPI_INT,MPI_COMM_WORLD);
-    //MPI_Bcast(prime,arraySize,MPI_INT,0,MPI_COMM_WORLD);
-    
-    
-}
 int gcd(int a, int b) {
     if (b == 0) {
         return a;
     }
     return gcd(b, a % b);
 }
-// Function to pick a random prime number and remove it from the array
-int pickrandomprime() {
-    int k = rand() % arraySize;
-    while (!prime[k]) {
-        k = rand() % arraySize;
-    }
-    int result = prime[k];
-    prime[k] = 0;
-    return result;
-}
+
 // Function to set public and private keys
-void setkeys() {
-    int prime1,prime2;
 
-    prime1 = pickrandomprime();
-    prime2 = pickrandomprime();
-
-    
+void SetPublicKey(long long  prime1,long long  prime2){
     n = prime1 * prime2;
-    int fi = (prime1 - 1) * (prime2 - 1);
     int e = 2;
-    int d = 2;
-
-    
-    
+    long long  fi = (prime1 - 1) * (prime2 - 1);
     int e1 = e + rank;
-    int buff = 0;
-    int recv_flag = 0;
-    MPI_Request recv_request;
-    MPI_Request request[size];
+    int buff = 0,snd_buff=0 ,count =0,flag = 0;
     while (1) {
         if (gcd(e1, fi) == 1)
         {
-           
-            for (int dest = 0; dest < size; dest++) {
-                if(dest == rank)
-                {continue;}
-                
-                MPI_Isend(&e1, 1, MPI_INT, dest, 0, MPI_COMM_WORLD,&request[rank]);
-            }
-            break;
+            flag = 1;
+            snd_buff = e1;
         }
-        MPI_Irecv(&e1, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &recv_request);
-        MPI_Test(&recv_request, &recv_flag, MPI_STATUS_IGNORE);
-        if(recv_flag != 0){
-            break;
+        if(flag == 1 || count%50 ==0)
+        {
+            MPI_Allreduce(&snd_buff,&buff,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD);
+            if(buff > 0)
+                break;
         }
         e1 += size;
+        count +=1;
     }
-    
-    
-    int d1 = d + rank;
-    int recv_flag1 = 0;
-    int count =0;
-    MPI_Request recv_request1;
-    while (1) {
-        if ((d1 * e1) % fi == 1)
-        {
-            //printf("rank : %d\n",rank);
-            for (int dest = 0; dest < size; dest++) 
-            {
-                if(dest == rank)
-                continue;
-                MPI_Request request;
-                MPI_Isend(&d1, 1, MPI_INT, dest, 1, MPI_COMM_WORLD,&request);
-                
-            }
-            break;
-
-        }
-
-        MPI_Irecv(&d1, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &recv_request1);
-        MPI_Test(&recv_request1, &recv_flag1, MPI_STATUS_IGNORE);
-
-        if(recv_flag1 != 0){
-            break;
-        }
-        
-        d1 += size;
-        count++;
-    }
-    printf("process (%d) with count : %d \n",rank,count);
-    if(rank == 0){
-        private_key = d1;
-        public_key = e1;
-    }
-    
-    MPI_Barrier(MPI_COMM_WORLD);
-    
+    public_key = buff;
 }
+void SetPrivateKey(long long  prime1,long long  prime2) {
+    int d = 2;
+    long long  fi = (prime1 - 1) * (prime2 - 1);
+    int d1 = d + rank;
+    int buff = 0, snd_buff=0 ,count =0,flag = 0;
+    while (1) {
+        if ((d1 * public_key) % fi == 1)
+        {
+            flag = 1;
+            snd_buff = d1;
+        }
 
+        if(flag == 1 || count%100 ==0)
+        {
+            MPI_Allreduce(&snd_buff,&buff,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD);
+            if(buff > 0)
+                break;
+        }
+        d1 += size;
+        count +=1;
+    }
+    private_key = buff;
+}
+void setkeys(long long prime1,long long prime2){
+    SetPublicKey(prime1,prime2);
+    SetPrivateKey(prime1,prime2);
+
+}
 // Function to encrypt the given number
 long long int encrypt(double message) {
+    long long int *resultArr = (long long int*)malloc(size  * sizeof(long long int));
     
     long long int encrypted_text = 1,result = 1;
     if(rank < public_key){
@@ -179,9 +106,16 @@ long long int encrypt(double message) {
         encrypted_text %= n;
     }
     }
-    MPI_Allreduce(&encrypted_text, &result,1, MPI_INT64_T,MPI_PROD,MPI_COMM_WORLD);
-
-    result %= n;
+    //MPI_Allreduce(&encrypted_text, &result,1, MPI_INT64_T,MPI_PROD,MPI_COMM_WORLD);
+    MPI_Allgather(&encrypted_text,1,MPI_INT64_T,resultArr,1,MPI_INT64_T,MPI_COMM_WORLD);
+    result = encrypted_text;
+    for (int i = 0;i<size;i++) {
+        if (rank == i)
+            continue;
+        result *= resultArr[i];
+        result %= n;
+    }
+    free(resultArr);
     
     return result;
 }
@@ -221,20 +155,19 @@ long long int decrypt(int encrypted_text) {
 }
 
 // Function to encode the message
-int* encoder(const char* message, int* size_arr) {
-    int *result;
+long long int* encoder(const char* message, int* size_arr) {
     *size_arr = strlen(message);
-    int* form = (int*)malloc(*size_arr * sizeof(int));
+    long long int* form = (long long int*)malloc(*size_arr * sizeof(long long int));
 
     for (int i = 0; i < *size_arr; i++) {
-        form[i] = encrypt((int)message[i]);
+        form[i] = encrypt((long long int)message[i]);
     }
 
     return form;
 }
 
 // Function to decode the message
-char* decoder(const int* encoded, int size) {
+char* decoder(const long long int* encoded, int size) {
     char* s = (char*)malloc((size + 1) * sizeof(char));
 
     for (int i = 0; i < size; i++) {
@@ -250,31 +183,26 @@ int main(int argc, char* argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    // Access the string argument using argv[1]
     const char* message = argv[1];
     
-    //primefiller();
-    //setkeys();
-    public_key = 5;
-    private_key = 4973;
-    n = 6407;
-    // Calling the encoding function
+    setkeys(4001
+    ,4003);
     int size;
-    int* coded = encoder(message, &size);
+    long long int* coded = encoder(message, &size);
     char* decoded = decoder(coded, size);
     if(rank == 0){
+    //printf("the public key (%lld)\nthe private key (%lld)\n, the n is : (%lld)\n",public_key,private_key,n);
     
     printf("Initial message:\n%s\n\n", message);
     printf("The encoded message (encrypted by public key):\n");
     for (int i = 0; i < size; i++) {
-        printf("%d", coded[i]);
+        printf("%lld", coded[i]);
     }
 
     printf("\n\nThe decoded message (decrypted by private key):\n%s\n",decoded );
     }
     // Free allocated memory
     free(coded);
-    free(prime);
     free(decoded);
     MPI_Finalize();
     return 0;
