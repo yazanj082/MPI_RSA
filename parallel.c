@@ -5,8 +5,6 @@
 #include <mpi.h>
 #include <setjmp.h>
 
-jmp_buf exception_buffer;
-#define N 250
 // Function prototypes
 void setkeys();
 long long int encrypt(double message);
