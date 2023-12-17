@@ -2,7 +2,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-
+#include <time.h>
+#define MAX_LINE_LENGTH 1024
 // Function prototypes
 void primefiller();
 int pickrandomprime();
@@ -113,31 +114,101 @@ char* decoder(const long long int* encoded, int size) {
     s[size] = '\0';
     return s;
 }
+typedef struct {
+    char **lines;
+    int size;
+} StringList;
 
+StringList readLinesFromFile(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    StringList list;
+    list.size = 0;
+    list.lines = NULL;
+    char buffer[MAX_LINE_LENGTH];
+
+    while (fgets(buffer, MAX_LINE_LENGTH, file)) {
+        // Remove newline character
+        buffer[strcspn(buffer, "\n")] = 0;
+
+        // Allocate memory for new line
+        list.lines = realloc(list.lines, sizeof(char*) * (list.size + 1));
+        list.lines[list.size] = strdup(buffer);
+        list.size++;
+    }
+    fclose(file);
+    return list;
+}
+
+void freeStringList(StringList *list) {
+    for (int i = 0; i < list->size; i++) {
+        free(list->lines[i]);
+    }
+    free(list->lines);
+}
+void writeArrayToCSV(const char *filename, double encoderTimes[], double decoderTimes[],double elapsed_timeKeys, int size) {
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    // Writing the header
+    fprintf(file, "Encoder Times,Decoder Times,Key Generation Times\n");
+
+    // Writing the data
+    for (int i = 0; i < size; i++) {
+        fprintf(file, "%f,%f,%f\n", encoderTimes[i], decoderTimes[i],elapsed_timeKeys);
+    }
+
+    fclose(file);
+}
 int main(int argc, char* argv[]) {
+    
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <string_argument>\n", argv[0]);
         return 1;
     }
+    const char *filename = argv[1];
 
+    StringList lines = readLinesFromFile(filename);
+
+    double encoderTimes[lines.size];
+    double decoderTimes[lines.size];
     // Access the string argument using argv[1]
-    const char* message = argv[1];
+    clock_t start = clock();
+    
     setkeys(4001,4003);
+
+    clock_t end = clock();
+    double elapsed_timeKeys = (double)(end - start) / CLOCKS_PER_SEC;
     printf("the public key (%lld)\nthe private key (%lld)\n, the n is : (%lld)\n",public_key,private_key,n);
     // Calling the encoding function
-    int size;
-    long long int* coded = encoder(message, &size);
+    for (int i = 0; i < lines.size; i++) {
+        clock_t start = clock();
+        int size;
+        long long int* coded = encoder(lines.lines[i], &size);
+        clock_t end = clock();
+        encoderTimes[i] = (double)(end - start) / CLOCKS_PER_SEC;
+        printf("Initial message:\n%s\n\n", lines.lines[i]);
+        printf("The encoded message (encrypted by public key):\n");
+        for (int i = 0; i < size; i++) {
+            printf("%lld", coded[i]);
+        }
 
-    printf("Initial message:\n%s\n\n", message);
-    printf("The encoded message (encrypted by public key):\n");
-    for (int i = 0; i < size; i++) {
-        printf("%lld", coded[i]);
+        clock_t start1 = clock();
+        printf("\n\nThe decoded message (decrypted by private key):\n%s\n", decoder(coded, size));
+        clock_t end1 = clock();
+        decoderTimes[i] = (double)(end1 - start1) / CLOCKS_PER_SEC;
+        // Free allocated memory
+        free(coded);
     }
+    writeArrayToCSV("Times/sequential_times.csv", encoderTimes, decoderTimes,elapsed_timeKeys, lines.size);
 
-    printf("\n\nThe decoded message (decrypted by private key):\n%s\n", decoder(coded, size));
-
-    // Free allocated memory
-    free(coded);
-
+    freeStringList(&lines);
     return 0;
 }

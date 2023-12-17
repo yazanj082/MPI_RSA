@@ -2,8 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <string.h>
 #include <setjmp.h>
 
+#define MAX_LINE_LENGTH 1024
 
 // Global variables
 long long  public_key;
@@ -92,7 +94,7 @@ void* SetPrivateKeyThread(void* args) {
 }
 typedef struct {
     double message;
-    long long int* partial_results;
+    long long int partial_results;
     int start;
     int end;
     long long int n; // Modulus n needs to be shared among threads
@@ -106,11 +108,11 @@ void* encrypt_portion(void* args) {
         encrypted_text %= data->n;
     }
 
-    data->partial_results[data->start] = encrypted_text; // Store result in the first position of each segment
+    data->partial_results = encrypted_text; // Store result in the first position of each segment
     return NULL;
 }
 long long int encrypt(double message) {
-    long long int* partial_results = (long long int*)malloc(total_threads * sizeof(long long int));
+    long long int partial_results;
     pthread_t threads[total_threads];
     EncryptThreadArgs args[total_threads];
 
@@ -119,7 +121,7 @@ long long int encrypt(double message) {
 
     for (int i = 0; i < total_threads; ++i) {
         args[i].message = message;
-        args[i].partial_results = partial_results;
+        args[i].partial_results = 1;
         args[i].start = i * section;
         args[i].end = args[i].start + section;
         args[i].n = n;
@@ -135,16 +137,15 @@ long long int encrypt(double message) {
     long long int result = 1;
     for (int i = 0; i < total_threads; ++i) {
         pthread_join(threads[i], NULL);
-        result *= partial_results[args[i].start]; // Combine results
+        result *= args[i].partial_results; // Combine results
         result %= n;
     }
 
-    free(partial_results);
     return result;
 }
 typedef struct {
     int encrypted_text;
-    long long int* partial_results;
+    long long int partial_results;
     int start;
     int end;
     long long int n; // Modulus n is shared among threads
@@ -158,11 +159,10 @@ void* decrypt_portion(void* args) {
         decrypted %= data->n;
     }
 
-    data->partial_results[data->start] = decrypted; // Store result in the first position of each segment
+    data->partial_results = decrypted; // Store result in the first position of each segment
     return NULL;
 }
 long long int decrypt(int encrypted_text) {
-    long long int* partial_results = (long long int*)malloc(total_threads * sizeof(long long int));
     pthread_t threads[total_threads];
     DecryptThreadArgs args[total_threads];
 
@@ -170,8 +170,10 @@ long long int decrypt(int encrypted_text) {
     if (total_threads > private_key) section = 1;
 
     for (int i = 0; i < total_threads; ++i) {
+        
+        
         args[i].encrypted_text = encrypted_text;
-        args[i].partial_results = partial_results;
+        args[i].partial_results = 1;
         args[i].start = i * section;
         args[i].end = args[i].start + section;
         args[i].n = n;
@@ -181,17 +183,18 @@ long long int decrypt(int encrypted_text) {
         }
 
         pthread_create(&threads[i], NULL, decrypt_portion, (void*)&args[i]);
+        
     }
-
     // Wait for threads to complete and combine results
     long long int result = 1;
     for (int i = 0; i < total_threads; ++i) {
+        
+
         pthread_join(threads[i], NULL);
-        result *= partial_results[args[i].start]; // Combine results
+        result *= args[i].partial_results; // Combine results
         result %= n;
     }
 
-    free(partial_results);
     return result;
 }
 // Function to encode the message
@@ -261,34 +264,111 @@ void SetKeys(long long prime1,long long prime2){
 
 
 }
+
+typedef struct {
+    char **lines;
+    int size;
+} StringList;
+StringList readLinesFromFile(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    StringList list;
+    list.size = 0;
+    list.lines = NULL;
+    char buffer[MAX_LINE_LENGTH];
+
+    while (fgets(buffer, MAX_LINE_LENGTH, file)) {
+        // Remove newline character
+        buffer[strcspn(buffer, "\n")] = 0;
+
+        // Allocate memory for new line
+        list.lines = realloc(list.lines, sizeof(char*) * (list.size + 1));
+        list.lines[list.size] = strdup(buffer);
+        list.size++;
+    }
+    fclose(file);
+    return list;
+}
+
+
+void freeStringList(StringList *list) {
+    for (int i = 0; i < list->size; i++) {
+        free(list->lines[i]);
+    }
+    free(list->lines);
+}
+void writeArrayToCSV(const char *filename, double encoderTimes[], double decoderTimes[],double elapsed_timeKeys, int size) {
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    // Writing the header
+    fprintf(file, "Encoder Times,Decoder Times,Key Generation Times\n");
+
+    // Writing the data
+    for (int i = 0; i < size; i++) {
+        fprintf(file, "%f,%f,%f\n", encoderTimes[i], decoderTimes[i],elapsed_timeKeys);
+    }
+
+    fclose(file);
+}
 int main(int argc, char* argv[]) {
     // Initialize mutex
+        if (argc != 3) {
+        printf("Usage: program_name arg1 arg2_as_integer\n");
+        return 1;
+    }
     pthread_mutex_init(&lock, NULL);
+    const char *filename = argv[1];
+    total_threads = atoi(argv[2]);
+    StringList lines = readLinesFromFile(filename);
 
+    double encoderTimes[lines.size];
+    double decoderTimes[lines.size];
     // Assuming prime1, prime2, and public_key are given
     long long prime1 = 4001;
     long long prime2 = 4003;
-    total_threads = 1; // Example thread count
-    
-    const char* message = "hgfhfghdddfhfghdddddddddddddhfhfghdddddddddddddhfhfghdddddddddddddhddddddddddhgd";
-
+     // Example thread count
+   clock_t start = clock();
     SetKeys(4001
     ,4003);
-    int size;
-    long long int* coded = encoder(message, &size);
-    char* decoded = decoder(coded, size);
+    clock_t end = clock();
     
-    printf("Initial message:\n%s\n\n", message);
-    printf("The encoded message (encrypted by public key):\n");
-    for (int i = 0; i < size; i++) {
-        printf("%lld", coded[i]);
-    }
+    double elapsed_timeKeys = (double)(end - start) / CLOCKS_PER_SEC;
+    
+    for (int i = 0; i < lines.size; i++) {
+        int size;
 
-    printf("\n\nThe decoded message (decrypted by private key):\n%s\n",decoded );
-    
-    // Free allocated memory
-    free(coded);
-    free(decoded);
+        clock_t start = clock();
+        long long int* coded = encoder(lines.lines[i], &size);
+        clock_t end = clock();
+        
+        encoderTimes[i] = (double)(end - start) / CLOCKS_PER_SEC;
+        clock_t start1 = clock();
+        char* decoded = decoder(coded, size);
+        clock_t end1 = clock();
+        decoderTimes[i] = (double)(end1 - start1) / CLOCKS_PER_SEC;
+        printf("Initial message:\n%s\n\n", lines.lines[i]);
+        printf("The encoded message (encrypted by public key):\n");
+        for (int i = 0; i < size; i++) {
+            printf("%lld", coded[i]);
+        }
+
+        printf("\n\nThe decoded message (decrypted by private key):\n%s\n",decoded );
+        // Free allocated memory
+        free(coded);
+        free(decoded);
+    }
+    writeArrayToCSV("Times/SAS_times.csv", encoderTimes, decoderTimes,elapsed_timeKeys, lines.size);
+
+    freeStringList(&lines);
+
     // Cleanup
     pthread_mutex_destroy(&lock);
 
