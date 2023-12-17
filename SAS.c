@@ -113,21 +113,24 @@ void* encrypt_portion(void* args) {
 }
 long long int encrypt(double message) {
     long long int partial_results;
-    pthread_t threads[total_threads];
-    EncryptThreadArgs args[total_threads];
+    int total_threads_new = total_threads;
+    if(total_threads>public_key)
+        total_threads_new = public_key;
+    EncryptThreadArgs args[total_threads_new];
 
-    int section = public_key / total_threads;
-    if (total_threads > public_key) section = 1;
+    int section = public_key / total_threads_new;
+    if (total_threads_new > public_key) section = 1;
 
-    for (int i = 0; i < total_threads; ++i) {
+    pthread_t threads[total_threads_new];
+    for (int i = 0; i < total_threads_new; ++i) {
         args[i].message = message;
         args[i].partial_results = 1;
         args[i].start = i * section;
         args[i].end = args[i].start + section;
         args[i].n = n;
 
-        if (i == total_threads - 1) {
-            args[i].end += public_key % total_threads;
+        if (i == total_threads_new - 1) {
+            args[i].end += public_key % total_threads_new;
         }
 
         pthread_create(&threads[i], NULL, encrypt_portion, (void*)&args[i]);
@@ -135,7 +138,7 @@ long long int encrypt(double message) {
 
     // Wait for threads to complete and combine results
     long long int result = 1;
-    for (int i = 0; i < total_threads; ++i) {
+    for (int i = 0; i < total_threads_new; ++i) {
         pthread_join(threads[i], NULL);
         result *= args[i].partial_results; // Combine results
         result %= n;
@@ -339,6 +342,7 @@ int main(int argc, char* argv[]) {
     SetKeys(4001
     ,4003);
     clock_t end = clock();
+    printf("the public key (%lld)\nthe private key (%lld)\n, the n is : (%lld)\n",public_key,private_key,n);
     
     double elapsed_timeKeys = (double)(end - start) / CLOCKS_PER_SEC;
     
