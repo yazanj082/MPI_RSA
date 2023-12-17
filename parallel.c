@@ -57,6 +57,8 @@ void SetPublicKey(long long prime1, long long prime2)
 }
 void SetPrivateKey(long long prime1, long long prime2)
 {
+    
+        
     int d = 2;
     long long fi = (prime1 - 1) * (prime2 - 1);
     int d1 = d + rank;
@@ -65,15 +67,20 @@ void SetPrivateKey(long long prime1, long long prime2)
     {
         if ((d1 * public_key) % fi == 1)
         {
+           
             flag = 1;
             snd_buff = d1;
         }
 
         if (flag == 1 || count % 100 == 0)
         {
+            
             MPI_Allreduce(&snd_buff, &buff, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
             if (buff > 0)
-                break;
+                {
+                    
+                    break;
+                }
         }
         d1 += size;
         count += 1;
@@ -83,7 +90,10 @@ void SetPrivateKey(long long prime1, long long prime2)
 void setkeys(long long prime1, long long prime2)
 {
     SetPublicKey(prime1, prime2);
+        
+    
     SetPrivateKey(prime1, prime2);
+    
 }
 // Function to encrypt the given number
 long long int encrypt(double message)
@@ -280,6 +290,7 @@ int main(int argc, char *argv[])
         int size;
         long long int *coded = encoder(lines.lines[i], &size);
         clock_t end = clock();
+    
         encoderTimes[i] = (double)(end - start) / CLOCKS_PER_SEC;
         clock_t start1 = clock();
         char *decoded = decoder(coded, size);
@@ -302,8 +313,11 @@ int main(int argc, char *argv[])
         free(coded);
         free(decoded);
     }
-    writeArrayToCSV("Times/MPI_times.csv", encoderTimes, decoderTimes, elapsed_timeKeys, lines.size);
-
+    if(rank == 0){
+    char charfilename[100];
+    sprintf(charfilename, "Times/MPI_times(%d).csv", size);
+    writeArrayToCSV(charfilename, encoderTimes, decoderTimes, elapsed_timeKeys, lines.size);
+    }
     freeStringList(&lines);
     MPI_Finalize();
     return 0;
