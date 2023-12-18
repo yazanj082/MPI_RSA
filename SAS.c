@@ -369,7 +369,9 @@ int main(int argc, char* argv[]) {
         free(coded);
         free(decoded);
     }
-    writeArrayToCSV("Times/SAS_times.csv", encoderTimes, decoderTimes,elapsed_timeKeys, lines.size);
+    char charfilename[100];
+    sprintf(charfilename, "Times/SAS_times(%d).csv", total_threads);
+    writeArrayToCSV(charfilename, encoderTimes, decoderTimes,elapsed_timeKeys, lines.size);
 
     freeStringList(&lines);
 
