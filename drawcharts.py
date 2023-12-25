@@ -67,3 +67,48 @@ fig_name = "sequential.png"
 fig_path = os.path.join(output_dir, fig_name)
 plt.savefig(fig_path, bbox_inches='tight')
 plt.close()
+
+# Plotting for comparison data
+plt.figure(figsize=(12, 6))
+plt.plot(sequential_data["Decoder Times"], label="Decoder Times Sequential")
+plt.plot(mpi_data["MPI (8) processes"]["Decoder Times"], label="Decoder Times MPI")
+plt.plot(sas_data["Shared Address Space (500) threads"]["Decoder Times"], label="Decoder Times SAS")
+plt.title("Decoding Comparison")
+plt.xlabel("Number of characters")
+plt.ylabel("Time")
+plt.legend()
+plt.grid(True)
+fig_name = "Decoding_comparison.png"
+fig_path = os.path.join(output_dir, fig_name)
+plt.savefig(fig_path, bbox_inches='tight')
+plt.close()
+
+# Plotting for comparison data
+plt.figure(figsize=(12, 6))
+plt.plot(sequential_data["Decoder Times"], label="Decoder Times Sequential")
+plt.plot(mpi_data["MPI (8) processes"]["Decoder Times"], label="Decoder Times MPI")
+plt.plot(sas_data["Shared Address Space (500) threads"]["Decoder Times"], label="Decoder Times SAS")
+plt.title("Decoding Comparison")
+plt.xlabel("Number of characters")
+plt.ylabel("Time")
+plt.legend()
+plt.grid(True)
+fig_name = "comparison.png"
+fig_path = os.path.join(output_dir, fig_name)
+plt.savefig(fig_path, bbox_inches='tight')
+plt.close()
+
+# Plotting for comparison data
+plt.figure(figsize=(12, 6))
+plt.plot(sequential_data["Encoder Times"], label="Encoder Times Sequential")
+plt.plot(mpi_data["MPI (8) processes"]["Encoder Times"], label="Encoder Times MPI")
+plt.plot(sas_data["Shared Address Space (500) threads"]["Encoder Times"], label="Encoder Times SAS")
+plt.title("Encoding Comparison")
+plt.xlabel("Number of characters")
+plt.ylabel("Time")
+plt.legend()
+plt.grid(True)
+fig_name = "Encoding_comparison.png"
+fig_path = os.path.join(output_dir, fig_name)
+plt.savefig(fig_path, bbox_inches='tight')
+plt.close()
