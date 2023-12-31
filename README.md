@@ -27,3 +27,8 @@ Expected Outcomes
 
 *   A clear comparison between the sequential and parallel implementations of RSA in terms of efficiency and scalability.
 *   Insights into the computational complexity of the RSA algorithm in both sequential and parallel forms, depicted through runtime plots against varying input sizes.
+
+Note :
+parallel.c : is MPI project
+
+SAS.c : is Shared address memory project
